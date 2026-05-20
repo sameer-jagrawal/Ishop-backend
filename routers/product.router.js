@@ -14,17 +14,17 @@ const fileUploader = require("express-fileupload");
 productRouter.post(
   "/create",
   fileUploader({ createParentPath: true }),
-  protect,authorized("admin"),
+  protect,authorized("admin","superAdmin"),
   create,
 );
 
 productRouter.get("/", read)
 productRouter.get("/:id", readById )
 productRouter.get("/slug/:slug", readBySlug )
-productRouter.delete("/delete/:id",protect,authorized("admin"), deleteById )
-productRouter.put("/image_delete/:slug",protect,authorized("admin"), deleteImage )
-productRouter.put("/update/:id",protect,authorized("admin"), updateById )
-productRouter.put("/edit/:slug", fileUploader({ createParentPath: true }),protect,authorized("admin"),updateDataBySlug )
+productRouter.delete("/delete/:id",protect,authorized("admin","superAdmin"), deleteById )
+productRouter.put("/image_delete/:slug",protect,authorized("admin","superAdmin"), deleteImage )
+productRouter.put("/update/:id",protect,authorized("admin","superAdmin"), updateById )
+productRouter.put("/edit/:slug", fileUploader({ createParentPath: true }),protect,authorized("admin","superAdmin"),updateDataBySlug )
 
 
 

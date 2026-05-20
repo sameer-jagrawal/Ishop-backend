@@ -46,9 +46,6 @@ const protect = async (req, res, next) => {
 
 function authorized(...roles) {
   return (req, res, next) => {
-    console.log(req.user);
-    console.log(req.user?.role);
-    console.log(roles);
     if (!req.user) {
      return sendNotFound(res,"User Not found")
     }

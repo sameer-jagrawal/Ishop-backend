@@ -1,6 +1,8 @@
  require('dotenv').config();
  const express = require("express");
  const cors = require("cors");
+ const dns = require('dns');
+ dns.setDefaultResultOrder('ipv4first');
  const mongoose = require("mongoose");
  let cookieParser = require('cookie-parser')
  const app = express()
@@ -19,6 +21,8 @@
  app.use("/api/order", require("./routers/order.router"))
 
 
+//  console.log(process.env.MONGODB_URL,"dotenv")
+
 
  mongoose.connect(process.env.MONGODB_URL).then(
     ()=>{
@@ -34,5 +38,6 @@
  ).catch(
     (error)=>{
         console.log("Database not connected")
+        console.log(error)
     }
  )
