@@ -236,7 +236,7 @@ const read = async (req, res) => {
       total,
       limit,
       pages: Math.ceil(total / limit),
-      imageBaseUrl: "http//localhost:5000/public/product",
+      imageBaseUrl:"https://ishop-backend-2mld.onrender.com/product"
     });
   } catch (error) {
     sendServerError(res);
@@ -254,7 +254,7 @@ const readById = async (req, res) => {
     ]);
     if (product) {
       return sendSuccess(res, "Product Found Successfully", product, {
-        image: "http://localhost:5000/product",
+        image: "https://ishop-backend-2mld.onrender.com/product"
       });
     }
     // const data = sendSuccess(res, "Product find succesfully", data);
@@ -274,7 +274,7 @@ const readBySlug = async (req, res) => {
     ]);
     if (product) {
       return sendSuccess(res, "Product Found Successfully", product, {
-        image: "http://localhost:5000/product",
+        image: "https://ishop-backend-2mld.onrender.com/product",
       });
     } else {
       return sendNotFound(res, "Product not found");

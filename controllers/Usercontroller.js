@@ -66,7 +66,7 @@ const verifyOtp = async (req,res) => {
 const login = async (req,res) => {
   try {
     const { email, password } = req.body;
-    console.log(password,"values")
+    // console.log(password,"values")
     
     if(  !email || !password) {
       return sendBadReaquest(res,"All feilds required")

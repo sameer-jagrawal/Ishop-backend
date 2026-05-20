@@ -61,16 +61,13 @@ const read = async (req,res)=>{
      
             return sendSuccess(res,"success",brand,{
             total,
-            imagebaseurl : "http://localhost:5000/brand/"
+            imagebaseurl : "https://ishop-backend-2mld.onrender.com/brand"
             })
 
     } catch (error) {
        sendServerError(res,"something went wrong")
     }
 }
-
-
-
 
 
 // delete api
@@ -174,7 +171,7 @@ const readBySlug = async (req, res) => {
 
         if (brand) {
             return sendSuccess(res, "success", brand,{
-                image:"http://localhost:5000/brand"
+                image:"https://ishop-backend-2mld.onrender.com/brand"
             });
         } else {
             return sendNotFound(res, "brand not found");

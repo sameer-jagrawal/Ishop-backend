@@ -51,7 +51,7 @@ const read = async (req,res)=>{
         if(category){
             return sendSuccess(res,"success",category,{
             total,
-            },{imagebaseurl: "http://localhost:5000/category/"})
+            },{imagebaseurl: "https://ishop-backend-2mld.onrender.com/category"})
         }
 
     } catch (error) {
@@ -83,7 +83,7 @@ const readBySlug = async (req, res) => {
 
         if (category) {
             return sendSuccess(res, "success", category,{
-                image:"http://localhost:5000/category"
+                image:"https://ishop-backend-2mld.onrender.com/category"
             });
         } else {
             return sendNotFound(res, "Category not found");
@@ -162,7 +162,7 @@ const updateDataBySlug = async (req, res) => {
       
       
       return sendupdate(res, "Updated Successfully", updated,{
-        imagebaseurl : "http://localhost:5000/category/"
+        imagebaseurl : "https://ishop-backend-2mld.onrender.com/category/"
       });
   
     } catch (error) {

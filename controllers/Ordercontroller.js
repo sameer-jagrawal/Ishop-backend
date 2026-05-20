@@ -196,7 +196,7 @@ const getAllOrders = async(req,res) => {
         .populate("items.product_id", "_id name price thumbnail")
         .sort({ createdAt: -1 });
         
-        return sendSuccess(res,"Orders fetched successfully",{orders,imageBaseUrl: "http//localhost:5000/public/product/"})
+        return sendSuccess(res,"Orders fetched successfully",{orders,imageBaseUrl: "https://ishop-backend-2mld.onrender.com/product/"})
     } catch (error) {
         console.log(error)
         sendServerError(res,)
@@ -216,7 +216,7 @@ const getSingleOrder = async(req,res) => {
         }
         
         
-        return sendSuccess(res,"Orders fetched successfully",{order,imageBaseUrl: "http://localhost:5000/public/product/"})
+        return sendSuccess(res,"Orders fetched successfully",{order,imageBaseUrl:"https://ishop-backend-2mld.onrender.com/product"})
     } catch (error) {
         console.log(error)
         sendServerError(res,)

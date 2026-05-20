@@ -159,7 +159,7 @@ const cartSync = async (req, res) => {
       "Cart synced successfully",
       {
         cart: validItems,
-        imageBaseUrl: "http://localhost:5000/product/"
+        imageBaseUrl:"https://ishop-backend-2mld.onrender.com/product"
       }
     );
 

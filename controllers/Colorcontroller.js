@@ -43,7 +43,6 @@ const read = async (req, res) => {
 
     return sendSuccess(res, "success", color, {
       total,
-      imagebaseurl: "http://localhost:5000/brand/",
     });
   } catch (error) {
     sendServerError(res, "something went wrong");
