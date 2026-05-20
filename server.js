@@ -7,10 +7,7 @@
  let cookieParser = require('cookie-parser')
  const app = express()
  app.use(cors({
-    origin: [
-      "http://localhost:3000",
-      "https://ishop-frontend-nine.vercel.app"
-    ],
+    origin: "https://ishop-frontend-nine.vercel.app",
     credentials: true
   }))
  app.use(express.json());
