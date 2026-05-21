@@ -173,7 +173,7 @@ const address = async (req,res) => {
     user.addresses.push(address)
     
     await user.save();
-    sendSuccess(res,"Address added successfully",{address:user.address})
+    sendSuccess(res,"Address added successfully",{addresses:user.addresses})
 
   } catch (error) {
     console.log(error)

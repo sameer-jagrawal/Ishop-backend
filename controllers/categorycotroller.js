@@ -106,11 +106,15 @@ const updateById = async (req,res)=>{
         if(!feilds.includes(feild)){
             return sendBadReaquest(res)
         }
-        const newRecord = await categoryModel.findByIdAndUpdate(id,{
-            [feild] : !category[feild]
-        })
+        const newRecord = await categoryModel.findByIdAndUpdate(
+            id,
+            {
+                [feild] : !category[feild]
+            },
+            { new: true }
+        )
 
-        sendupdate(res,"status updated successfully",newRecord)
+        sendupdate(res,"updated successfully",newRecord)
     } catch (error) {
         // console.log(error)
         return sendServerError(res,)
