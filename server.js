@@ -6,10 +6,28 @@
  const mongoose = require("mongoose");
  let cookieParser = require('cookie-parser')
  const app = express()
- app.use(cors({
-    origin: "https://ishop-frontend-nine.vercel.app",
-    credentials: true
-  }))
+ const allowedOrigins = [
+    "http://localhost:3000",
+    "https://ishop-frontend-nine.vercel.app",
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  ].filter(Boolean);
+  
+  app.use(cors({
+    origin: function (origin, callback) {
+  
+      // allow requests with no origin
+      // like mobile apps or postman
+      if (!origin) return callback(null, true);
+  
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  }));
+ app.set("trust proxy", 1);
  app.use(express.json());
  app.use(cookieParser());
  app.use(express.static("./public"))

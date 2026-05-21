@@ -105,7 +105,13 @@ const login = async (req,res) => {
     sameSite: "none",
   });
   
-    return sendSuccess(res,`Welcome Back ${user.name}`,{id:user._id, name:user.name, email:user.email,role:user.role})
+    return sendSuccess(res,`Welcome Back ${user.name}`,{
+      id:user._id,
+      name:user.name,
+      email:user.email,
+      role:user.role,
+      token,
+    })
 
   } catch (error) {
       console.log(error)
