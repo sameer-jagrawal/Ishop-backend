@@ -344,7 +344,7 @@ const deleteImage = async (req, res) => {
 
 const updateById = async (req, res) => {
   try {
-    const { feild } = req.body;
+    const { feild, value } = req.body;
     const id = req.params.id;
     const category = await ProductModel.findById(id);
     if (!category) {
@@ -363,12 +363,16 @@ const updateById = async (req, res) => {
     if (!feilds.includes(feild)) {
       return sendBadReaquest(res);
     }
+    const nextValue = typeof value === "boolean" ? value : !category[feild];
+
     const newRecord = await ProductModel.findByIdAndUpdate(
       id,
       {
-        [feild]: !category[feild],
+        $set: {
+          [feild]: nextValue,
+        },
       },
-      { new: true },
+      { new: true, runValidators: true },
     );
 
     sendupdate(res, "status updated successfully", newRecord);

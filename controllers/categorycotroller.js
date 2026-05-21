@@ -96,7 +96,7 @@ const readBySlug = async (req, res) => {
 // update api
 const updateById = async (req,res)=>{
     try {
-        const {feild} = req.body;
+        const {feild, value} = req.body;
         const id =  (req.params.id)
         const category = await categoryModel.findById(id)
         if(!category){
@@ -106,12 +106,16 @@ const updateById = async (req,res)=>{
         if(!feilds.includes(feild)){
             return sendBadReaquest(res)
         }
+        const nextValue = typeof value === "boolean" ? value : !category[feild]
+
         const newRecord = await categoryModel.findByIdAndUpdate(
             id,
             {
-                [feild] : !category[feild]
+                $set: {
+                    [feild] : nextValue
+                }
             },
-            { new: true }
+            { new: true, runValidators: true }
         )
 
         sendupdate(res,"updated successfully",newRecord)

@@ -71,11 +71,9 @@ const deleteById = async (req, res) => {
 
 const updateStatus = async (req, res) => {
   try {
-    const { feild } = req.body;
+    const { feild, value } = req.body;
     const { id } = req.params;
-    console.log(id);
     const color = await ColorModel.findById(id);
-    console.log(color);
     if (!color) {
       return sendBadReaquest(res, "No data found");
     }
@@ -84,12 +82,22 @@ const updateStatus = async (req, res) => {
       return sendBadReaquest(res);
     }
 
-    const newRecord = await ColorModel.findByIdAndUpdate(id,{
-        [feild] : !color[feild]
-    })
+    const nextValue = typeof value === "boolean" ? value : !color[feild];
+
+    const newRecord = await ColorModel.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          [feild]: nextValue,
+        },
+      },
+      { new: true, runValidators: true },
+    )
 
     return sendupdate(res, "Status updated succesfully", newRecord);
-  } catch (error) {}
+  } catch (error) {
+    return sendServerError(res);
+  }
 };
 
 module.exports = { create, read, deleteById, updateStatus };
