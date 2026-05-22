@@ -4,7 +4,7 @@ const sendSuccess = (res, masg = "Success", data = {},meta = {})=>{
         success :  true,
         masg,
         data,
-        meta : {}
+        meta
     })
 }
 

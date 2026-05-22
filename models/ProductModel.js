@@ -74,7 +74,7 @@ const productSchema = new mongoose.Schema(
     },
     is_hot: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     is_best: {
       type: Boolean,

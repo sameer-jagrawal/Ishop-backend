@@ -2,6 +2,8 @@
  const express = require("express");
  const cors = require("cors");
  const dns = require('dns');
+ const http = require("http");
+const { Server } = require("socket.io");
  dns.setDefaultResultOrder('ipv4first');
  const mongoose = require("mongoose");
  let cookieParser = require('cookie-parser')
@@ -27,6 +29,7 @@
     },
     credentials: true,
   }));
+ 
  app.set("trust proxy", 1);
  app.use(express.json());
  app.use(cookieParser());
@@ -43,13 +46,40 @@
  app.use("/api/order", require("./routers/order.router"))
 
 
+ const server = http.createServer(app);
+ const io = new Server(server, {
+    cors: {
+      origin: ["http://localhost:3000",
+        "https://ishop-frontend-nine.vercel.app"],
+      credentials: true,
+    },
+  });
+
+  global.io = io;
+
+io.on("connection", (socket) => {
+
+  console.log("Socket connected:", socket.id);
+
+  // admin joins room
+  socket.on("join-admin", () => {
+    socket.join("admin-room");
+
+    console.log("Admin joined");
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Disconnected");
+  });
+});
+
 //  console.log(process.env.MONGODB_URL,"dotenv")
 
 
  mongoose.connect(process.env.MONGODB_URL).then(
     ()=>{
        
-        app.listen(
+        server.listen(
             process.env.PORT,
             ()=>{
                 console.log("Database connected")

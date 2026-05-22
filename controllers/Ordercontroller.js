@@ -52,7 +52,15 @@ const orderCreate = async (req, res) => {
         totalAmount: total_Amount,
         paymentStatus: "pending",
       });
-  
+      
+
+      global.io.to("admin-room").emit("new-order", {
+        message: "New Order Received",
+        orderId: order._id,
+        customer: user.name,
+        total: total_Amount,
+        createdAt: order.createdAt
+      });
       // COD
       if (paymentMethod === "cod") {
         return sendSuccess(
