@@ -49,29 +49,37 @@ const { Server } = require("socket.io");
  const server = http.createServer(app);
  const io = new Server(server, {
     cors: {
-      origin: ["http://localhost:3000",
-        "https://ishop-frontend-nine.vercel.app"],
+      origin: allowedOrigins,
       credentials: true,
+      methods: ["GET", "POST"],
     },
   });
 
   global.io = io;
 
-io.on("connection", (socket) => {
-
-  console.log("Socket connected:", socket.id);
-
-  // admin joins room
-  socket.on("join-admin", () => {
-    socket.join("admin-room");
-
-    console.log("Admin joined");
+  io.engine.on("connection_error", (err) => {
+    console.log("Socket connection error:", err);
   });
-
-  socket.on("disconnect", () => {
-    console.log("Disconnected");
+  
+  io.on("connection", (socket) => {
+  
+    console.log("Socket connected:", socket.id);
+  
+    socket.on("join-admin", () => {
+  
+      console.log("join-admin event received");
+  
+      socket.join("admin-room");
+  
+      console.log("Admin joined");
+  
+    });
+  
+    socket.on("disconnect", () => {
+      console.log("Disconnected");
+    });
+  
   });
-});
 
 //  console.log(process.env.MONGODB_URL,"dotenv")
 

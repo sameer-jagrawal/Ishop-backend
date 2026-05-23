@@ -14,8 +14,16 @@ const orderCreate = async (req, res) => {
     try {
       // console.log(req,"order request")
       const userId = req.user._id;
+      console.log(req.body)
       console.log(userId)
       const { paymentMethod, address } = req.body;
+
+      if (!address || !paymentMethod) {
+        return res.status(400).json({
+          success: false,
+          message: "Address and payment method are required",
+        });
+      }
   
       const userCart = await CartModel.findOne({ userId }).populate({
         path: "items.productId",
@@ -55,13 +63,15 @@ const orderCreate = async (req, res) => {
       });
       
 
-      global.io.to("admin-room").emit("new-order", {
-        message: "New Order Received",
-        orderId: order._id,
-        customer: user.name,
-        total: total_Amount,
-        createdAt: order.createdAt
-      });
+      if (global.io) {
+        global.io.to("admin-room").emit("new-order", {
+          message: "New Order Received",
+          orderId: order._id,
+          customer: req.user?.name || "Customer",
+          total: total_Amount,
+          createdAt: order.createdAt
+        });
+      }
       // COD
       if (paymentMethod === "cod") {
         return sendSuccess(

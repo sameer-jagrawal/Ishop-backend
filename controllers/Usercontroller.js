@@ -101,8 +101,8 @@ const login = async (req,res) => {
   res.cookie("jwt", token, {
     maxAge: 30 * 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   });
   
     return sendSuccess(res,`Welcome Back ${user.name}`,{
@@ -153,7 +153,11 @@ const getMe = (req,res) => {
 //logOut
 const logOut = (req,res) => {
   try {
-    res.cookie('jwt')
+    res.clearCookie("jwt", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    })
     return sendSuccess(res,"User Logout Succesfully")
    
   } catch (error) {

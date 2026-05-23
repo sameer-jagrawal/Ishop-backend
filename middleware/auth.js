@@ -13,7 +13,7 @@ const protect = async (req, res, next) => {
     // console.log(req.headers.authorization,"user token ")
 
     if (!token && req.headers.authorization) {
-      token = req.headers.authorization;
+      token = req.headers.authorization.replace(/^Bearer\s+/i, "");
     }
 
     if (!token) {
