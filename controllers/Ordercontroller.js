@@ -11,6 +11,7 @@ const instance = new Razorpay({
 
 // order create
 const orderCreate = async (req, res) => {
+  console.log(req.body,'order data')
     try {
       // console.log(req,"order request")
       const userId = req.user._id;

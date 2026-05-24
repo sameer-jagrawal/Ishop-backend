@@ -19,13 +19,15 @@ const protect = async (req, res, next) => {
     if (!token) {
       return sendNotFound(res,"Token is missing ")
     }
+    
+    console.log(token)
 
     const decoded = jwt.verify(
       token,
       process.env.SECREAT_KEY
     );
 
-  
+    
     req.user = await UserModel.findById(decoded.id).select("-password");
     if (!req.user) {
       return sendNotFound(res, "User not found");

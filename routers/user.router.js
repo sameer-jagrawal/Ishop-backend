@@ -7,6 +7,7 @@ const {
   getMe,
   address,
   deleteAddress,
+  logOut,
 } = require("../controllers/Usercontroller");
 
 UserRouter.post(
@@ -18,6 +19,8 @@ UserRouter.post("/login",login)
 UserRouter.get("/get",protect,getMe)
 UserRouter.post("/address",protect,address)
 UserRouter.delete("/address/delete/:id",protect,deleteAddress)
+UserRouter.post("/logOut",protect,logOut)
+
 
 
 

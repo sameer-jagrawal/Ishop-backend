@@ -137,8 +137,6 @@ const create = async (req, res) => {
 // read api
 const read = async (req, res) => {
   try {
-    //     console.log("RAW QUERY:", req.query);
-    // console.log("TYPE:", typeof req.query.brand_slug);
     const query = req.query;
     const sorted = {};
     const filter = {};
@@ -232,7 +230,16 @@ const read = async (req, res) => {
         .populate(["categoryId", "brandId", "colorId"]),
     ]);
 
-    sendSuccess(res, "Product find succesfully", product, {
+    console.log({
+      total,
+      limit,
+      pages: Math.ceil(total / limit),
+      imageBaseUrl:
+        "https://ishop-backend-2mld.onrender.com/product"
+    });
+
+    sendSuccess(res, "Product find succesfully",{
+      product,
       total,
       limit,
       pages: Math.ceil(total / limit),

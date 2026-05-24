@@ -101,8 +101,8 @@ const login = async (req,res) => {
   res.cookie("jwt", token, {
     maxAge: 30 * 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: true,
+    sameSite: "none",
   });
   
     return sendSuccess(res,`Welcome Back ${user.name}`,{
@@ -155,8 +155,8 @@ const logOut = (req,res) => {
   try {
     res.clearCookie("jwt", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: true,
+      sameSite: "none",
     })
     return sendSuccess(res,"User Logout Succesfully")
    
@@ -206,4 +206,4 @@ const deleteAddress = async(req,res) => {
   }
 }
 
-module.exports = {register,verifyOtp,login,getMe,address,deleteAddress}
+module.exports = {register,verifyOtp,login,getMe,address,deleteAddress,logOut}
