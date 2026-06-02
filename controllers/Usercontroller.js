@@ -1,6 +1,6 @@
 const UserModel = require("../models/UserModel")
 const Cryptr = require('cryptr');
-const cryptr = new Cryptr(process.env.SECREAT_KEY)
+const cryptr = new Cryptr(process.env.JWT_SECRET)
 const { sendBadReaquest, sendConflict, sendCreated, sendNotFound, sendServerError, sendSuccess } = require("../utils/response");
 const sendOtpMail = require("../utils/sendOtpMail");
 const generateToke = require("../utils/jwt")
