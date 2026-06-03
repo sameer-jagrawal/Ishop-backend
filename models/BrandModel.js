@@ -21,6 +21,10 @@ const BrandSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    imagePublicId: {
+      type: String,
+      default: null,
+    },
     status: {
       type: Boolean,
       default: true,

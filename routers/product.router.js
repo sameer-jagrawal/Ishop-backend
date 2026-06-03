@@ -10,10 +10,8 @@ const {
   readBySlug,
   deleteImage
 } = require("../controllers/Productcontroller");
-const fileUploader = require("express-fileupload");
 productRouter.post(
   "/create",
-  fileUploader({ createParentPath: true }),
   protect,authorized("admin","superAdmin"),
   create,
 );
@@ -24,7 +22,7 @@ productRouter.get("/slug/:slug", readBySlug )
 productRouter.delete("/delete/:id",protect,authorized("admin","superAdmin"), deleteById )
 productRouter.put("/image_delete/:slug",protect,authorized("admin","superAdmin"), deleteImage )
 productRouter.put("/update/:id",protect,authorized("admin","superAdmin"), updateById )
-productRouter.put("/edit/:slug", fileUploader({ createParentPath: true }),protect,authorized("admin","superAdmin"),updateDataBySlug )
+productRouter.put("/edit/:slug",protect,authorized("admin","superAdmin"),updateDataBySlug )
 
 
 

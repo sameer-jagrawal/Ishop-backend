@@ -1,7 +1,6 @@
 const ProductModel = require("../models/ProductModel");
 const mongoose = require("mongoose");
-const fs = require("fs");
-const { imageName } = require("../utils/helper");
+const { cloudinary } = require("../utils/helper");
 const {
   sendBadReaquest,
   sendConflict,
@@ -14,6 +13,25 @@ const {
 const categoryModel = require("../models/CategoryModel");
 const BrandModel = require("../models/BrandModel");
 const ColorModel = require("../models/ColorModel");
+
+async function uploadProductImage(file) {
+  const uploadedImage = await cloudinary.uploader.upload(file.tempFilePath, {
+    folder: "product",
+  });
+
+  return {
+    url: uploadedImage.secure_url,
+    publicId: uploadedImage.public_id,
+  };
+}
+
+async function destroyCloudinaryImages(publicIds = []) {
+  const ids = publicIds.filter(Boolean);
+
+  if (!ids.length) return;
+
+  await Promise.all(ids.map((publicId) => cloudinary.uploader.destroy(publicId)));
+}
 
 // create api
 const create = async (req, res) => {
@@ -75,37 +93,22 @@ const create = async (req, res) => {
       }
     }
 
-    // 7. Process multiple images
     const files = Array.isArray(images) ? images : [images];
-    const imageNames = [];
+    const uploadedImages = [];
     for (const file of files) {
-      const imagename = imageName(file.name);
-      const destination = `./public/product/${imagename}`;
-      await new Promise((resolve, reject) => {
-        file.mv(destination, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-      imageNames.push(imagename);
+      uploadedImages.push(await uploadProductImage(file));
     }
 
-    // 8. Process thumbnail
-    const thumbName = imageName(thumbnailFile.name);
-    const thumbPath = `./public/product/${thumbName}`;
-    await new Promise((resolve, reject) => {
-      thumbnailFile.mv(thumbPath, (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    const uploadedThumbnail = await uploadProductImage(thumbnailFile);
 
     // 9. Create product in database
     const data = await ProductModel.create({
       name,
       slug,
-      images: imageNames,
-      thumbnail: thumbName,
+      images: uploadedImages.map((image) => image.url),
+      imagePublicIds: uploadedImages.map((image) => image.publicId),
+      thumbnail: uploadedThumbnail.url,
+      thumbnailPublicId: uploadedThumbnail.publicId,
       categoryId,
       brandId,
       colorId,
@@ -115,14 +118,12 @@ const create = async (req, res) => {
       discount_percentage,
       original_price,
     });
-    const imageBaseUrl = "http://localhost:5000/product/";
     const plainData = data.toObject();
     // console.log("Plain object categoryId:", plainData.categoryId);
     return sendSuccess(
       res,
       "Product created sucessfully",
       plainData,
-      imageBaseUrl,
     );
     // return res.status(200).json({ success: true, data: plainData });
   } catch (error) {
@@ -302,11 +303,18 @@ const deleteById = async (req, res) => {
       return res.status(400).json({ message: "Invalid ID" });
     }
 
-    const deleted = await ProductModel.findByIdAndDelete(id);
+    const product = await ProductModel.findById(id);
 
-    if (!deleted) {
-      return res.status(404).json({ message: "Brand not found" });
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
     }
+
+    await destroyCloudinaryImages([
+      product.thumbnailPublicId,
+      ...(product.imagePublicIds || []),
+    ]);
+
+    await ProductModel.findByIdAndDelete(id);
 
     return sendDelete(res, "deleted succesfully");
   } catch (error) {
@@ -320,7 +328,7 @@ const deleteById = async (req, res) => {
 const deleteImage = async (req, res) => {
   try {
     const { slug } = req.params;
-    const { image_name } = req.body;
+    const { image_name, imagePublicId } = req.body;
     // console.log(image_name);
 
     const product = await ProductModel.findOne({ slug });
@@ -328,20 +336,46 @@ const deleteImage = async (req, res) => {
       return sendBadReaquest(res, "Product not found");
     }
 
-    // Remove image from DB array
-    await ProductModel.findOneAndUpdate(
-      { slug },
-      { $pull: { images: image_name } },
-      { new: true },
+    const imageIndex = (product.images || []).findIndex(
+      (image, index) =>
+        image === image_name ||
+        image === imagePublicId ||
+        product.imagePublicIds?.[index] === image_name ||
+        product.imagePublicIds?.[index] === imagePublicId,
     );
+    const publicId =
+      imagePublicId ||
+      product.imagePublicIds?.[imageIndex] ||
+      (image_name?.startsWith("product/") ? image_name : null);
 
-    // Delete file from storage
-    fs.unlink(`./public/product/${image_name}`, (error) => {
-      if (error) {
-        return sendBadReaquest(res, "Unable to delete image");
-      }
-      return sendSuccess(res, "Image deleted successfully");
-    });
+    if (imageIndex === -1) {
+      return sendBadReaquest(res, "Image not found");
+    }
+
+    if (publicId) {
+      await cloudinary.uploader.destroy(publicId);
+    }
+
+    if (imageIndex > -1) {
+      const nextImages = [...(product.images || [])];
+      const nextImagePublicIds = [...(product.imagePublicIds || [])];
+
+      nextImages.splice(imageIndex, 1);
+      nextImagePublicIds.splice(imageIndex, 1);
+
+      await ProductModel.findOneAndUpdate(
+        { slug },
+        {
+          $set: {
+            images: nextImages,
+            imagePublicIds: nextImagePublicIds,
+          },
+        },
+        { new: true },
+      );
+    }
+
+    return sendSuccess(res, "Image deleted successfully");
   } catch (error) {
     return sendServerError(res, "Internal server error");
   }
@@ -451,26 +485,32 @@ const updateDataBySlug = async (req, res) => {
       }
     }
 
-    // 7. Process multiple images
-    let imageNames = product.images;
+    let imageUrls = product.images || [];
+    let imagePublicIds = product.imagePublicIds || [];
 
     if (images) {
+      await destroyCloudinaryImages(imagePublicIds);
+
       const files = Array.isArray(images) ? images : [images];
-      imageNames = [];
+      const uploadedImages = [];
 
       for (const file of files) {
-        const imagename = imageName(file.name);
-        await file.mv(`./public/product/${imagename}`);
-        imageNames.push(imagename);
+        uploadedImages.push(await uploadProductImage(file));
       }
+
+      imageUrls = uploadedImages.map((image) => image.url);
+      imagePublicIds = uploadedImages.map((image) => image.publicId);
     }
 
-    // 8. Process thumbnail
-    let thumbName = product.thumbnail;
+    let thumbnailUrl = product.thumbnail;
+    let thumbnailPublicId = product.thumbnailPublicId;
 
     if (thumbnailFile) {
-      thumbName = imageName(thumbnailFile.name);
-      await thumbnailFile.mv(`./public/product/${thumbName}`);
+      await destroyCloudinaryImages([thumbnailPublicId]);
+
+      const uploadedThumbnail = await uploadProductImage(thumbnailFile);
+      thumbnailUrl = uploadedThumbnail.url;
+      thumbnailPublicId = uploadedThumbnail.publicId;
     }
 
     // 9. Create product in database
@@ -487,12 +527,14 @@ const updateDataBySlug = async (req, res) => {
       original_price,
     };
 
-    if (imageNames.length) {
-      updateObject.images = imageNames;
+    if (imageUrls.length) {
+      updateObject.images = imageUrls;
+      updateObject.imagePublicIds = imagePublicIds;
     }
 
-    if (thumbName) {
-      updateObject.thumbnail = thumbName;
+    if (thumbnailUrl) {
+      updateObject.thumbnail = thumbnailUrl;
+      updateObject.thumbnailPublicId = thumbnailPublicId;
     }
     // 10. Update product
     const updated = await ProductModel.findOneAndUpdate(

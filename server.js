@@ -7,6 +7,7 @@ const { Server } = require("socket.io");
  dns.setDefaultResultOrder('ipv4first');
  const mongoose = require("mongoose");
  let cookieParser = require('cookie-parser')
+ const fileUpload = require("express-fileupload");
  const app = express()
  const allowedOrigins = [
     "http://localhost:3000",
@@ -38,6 +39,13 @@ const { Server } = require("socket.io");
  app.get("/", (req, res) => {
     res.send("Backend is running successfully");
   });
+  app.use(
+    fileUpload({
+      useTempFiles: true,
+      tempFileDir: "tmp",
+      createParentPath: true,
+    })
+  );
  app.use("/api/category", require("./routers/categoryrouter"))
  app.use("/api/brand", require("./routers/brand.router"))
  app.use("/api/color", require("./routers/color.router"))

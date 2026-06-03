@@ -16,7 +16,12 @@ const categorySchema = new mongoose.Schema(
     },
     image: {
       type: String,
-      default: null,
+      required: true,
+    },
+    
+    imagePublicId: {
+      type: String,
+      required: true,
     },
     status: {
       type: Boolean,

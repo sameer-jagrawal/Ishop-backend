@@ -1,35 +1,45 @@
 const categoryModel = require("../models/CategoryModel");
 const {sendBadReaquest,sendConflict,sendCreated,sendDelete,sendNotFound,sendServerError,sendSuccess,sendupdate} = require("../utils/response")
-const {imageName,} = require("../utils/helper")
 
 // create api
-const create = async (req,res)=>{
-    try {
-        // console.log(req.cookies,"cookies")
-        const {name,slug} = req.body;
-        const image = req.files?.image;
-        // console.log(image)
-        if(!name || !slug || !image){
-            return sendBadReaquest(res,"All feild are required")
-        }
-        const existCategory =  await categoryModel.findOne({slug});
-        if(existCategory){
-            return sendConflict(res)
-        }
-        const imagename = imageName(image.name)
-       const destination = `./public/category/${imagename}`;
-        image.mv(destination, async(error) =>{
-            if(error) return sendServerError (res, "image not upload");
-            const data =   await categoryModel.create({name,slug,image:imagename});
+const {cloudinary} = require("../utils/helper");
 
-             return sendCreated(res,"Created Successfully",data)  
-        })
-      
-    } catch (error) {
-        // console.log(error)
-        return sendServerError(res, "Something went wrong");
+const create = async (req, res) => {
+  try {
+    const { name, slug } = req.body;
+    const image = req.files?.image;
+
+    if (!name || !slug || !image) {
+      return sendBadReaquest(res, "All fields are required");
     }
-}
+
+    const existCategory = await categoryModel.findOne({ slug });
+
+    if (existCategory) {
+      return sendConflict(res);
+    }
+
+    const uploadedImage = await cloudinary.uploader.upload(
+      image.tempFilePath,
+      {
+        folder: "category",
+      }
+    );
+
+    console.log(uploadedImage.secure_url,uploadedImage.public_id,"hii this cloudinary data")
+    const data = await categoryModel.create({
+      name,
+      slug,
+      image: uploadedImage.secure_url,
+      imagePublicId: uploadedImage.public_id,
+    });
+
+    return sendCreated(res, "Created Successfully", data);
+  } catch (error) {
+    console.log(error);
+    return sendServerError(res, "Something went wrong");
+  }
+};
 
 // read api
 const read = async (req,res)=>{
@@ -153,13 +163,20 @@ const updateDataBySlug = async (req, res) => {
         slug: newSlug || slug
       };
   
-      // handle image
       if (image) {
-        const imagename = imageName(image.name);
-        const destination = `./public/category/${imagename}`;
-  
-        await image.mv(destination);
-        updateData.image = imagename;
+        if (category.imagePublicId) {
+          await cloudinary.uploader.destroy(category.imagePublicId);
+        }
+
+        const uploadedImage = await cloudinary.uploader.upload(
+          image.tempFilePath,
+          {
+            folder: "category",
+          }
+        );
+
+        updateData.image = uploadedImage.secure_url;
+        updateData.imagePublicId = uploadedImage.public_id;
       }
   
       const updated = await categoryModel.findOneAndUpdate(
@@ -188,6 +205,9 @@ const deleteById = async (req,res)=>{
         const category = await categoryModel.findById(id)
         // console.log(category)
         if(category){
+           if (category.imagePublicId) {
+             await cloudinary.uploader.destroy(category.imagePublicId);
+           }
            await categoryModel.findByIdAndDelete(id)
         } 
         sendDelete(res)

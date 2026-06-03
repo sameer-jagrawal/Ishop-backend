@@ -1,6 +1,6 @@
 const BrandModel = require("../models/BrandModel");
-const { imageName } = require("../utils/helper");
-const { sendBadReaquest, sendConflict, sendServerError, sendSuccess, sendupdate,sendDelete } = require("../utils/response");
+const { cloudinary } = require("../utils/helper");
+const { sendBadReaquest, sendConflict, sendServerError, sendSuccess, sendupdate,sendDelete, sendNotFound } = require("../utils/response");
 
 
 
@@ -30,17 +30,27 @@ const create = async (req,res) => {
         return sendBadReaquest(res, "Category required");
       }
         // console.log(categoryId)
-        const imagename = imageName(image.name)
-        const destination = `./public/brand/${imagename}`;
-        image.mv(destination, async (error)=>{
-            if(error) return sendServerError(res,"image not uploaded")
-            const data = (await BrandModel.create({name,slug,image:imagename,categoryId}))
-            return sendSuccess(res,"Brand Created Successfully", data)
-        })
+        const uploadedImage = await cloudinary.uploader.upload(
+          image.tempFilePath,
+          {
+            folder: "brand",
+          }
+        );
+
+        const data = await BrandModel.create({
+          name,
+          slug,
+          image: uploadedImage.secure_url,
+          imagePublicId: uploadedImage.public_id,
+          categoryId,
+        });
+
+        return sendSuccess(res,"Brand Created Successfully", data)
 
 
     } catch (error) {
-        // console.log(error)
+        console.log(error)
+        return sendServerError(res, "Something went wrong");
     }
 }
 
@@ -69,6 +79,39 @@ const read = async (req,res)=>{
     }
 }
 
+const updateById = async (req, res) => {
+    try {
+        const { feild, value } = req.body;
+        const id = req.params.id;
+
+        const brand = await BrandModel.findById(id);
+        if (!brand) {
+            return sendNotFound(res, "Brand not found");
+        }
+
+        const feilds = ["status", "is_top"];
+        if (!feilds.includes(feild)) {
+            return sendBadReaquest(res, "Invalid status field");
+        }
+
+        const nextValue = typeof value === "boolean" ? value : !brand[feild];
+
+        const newRecord = await BrandModel.findByIdAndUpdate(
+            id,
+            {
+                $set: {
+                    [feild]: nextValue,
+                },
+            },
+            { new: true, runValidators: true }
+        );
+
+        return sendupdate(res, "updated successfully", newRecord);
+    } catch (error) {
+        return sendServerError(res, "Something went wrong");
+    }
+};
+
 
 // delete api
 const mongoose = require("mongoose");
@@ -81,11 +124,17 @@ const deleteById = async (req, res) => {
             return res.status(400).json({ message: "Invalid ID" });
         }
 
-        const deleted = await BrandModel.findByIdAndDelete(id);
+        const brand = await BrandModel.findById(id);
 
-        if (!deleted) {
+        if (!brand) {
             return res.status(404).json({ message: "Brand not found" });
         }
+
+        if (brand.imagePublicId) {
+            await cloudinary.uploader.destroy(brand.imagePublicId);
+        }
+
+        await BrandModel.findByIdAndDelete(id);
 
         return sendDelete(res, "deleted succesfully");
 
@@ -137,13 +186,20 @@ const updateDataBySlug = async (req, res) => {
       };
 
   
-      // handle image
       if (image) {
-        const imagename = imageName(image.name);
-        const destination = `./public/brand/${imagename}`;
-  
-        await image.mv(destination);
-        updateData.image = imagename;
+        if (brand.imagePublicId) {
+          await cloudinary.uploader.destroy(brand.imagePublicId);
+        }
+
+        const uploadedImage = await cloudinary.uploader.upload(
+          image.tempFilePath,
+          {
+            folder: "brand",
+          }
+        );
+
+        updateData.image = uploadedImage.secure_url;
+        updateData.imagePublicId = uploadedImage.public_id;
       }
   
       const updated = await BrandModel.findOneAndUpdate(
@@ -182,4 +238,4 @@ const readBySlug = async (req, res) => {
 };
 
 
-module.exports = {create,read,deleteById,updateDataBySlug,readBySlug}
+module.exports = {create,read,deleteById,updateDataBySlug,readBySlug,updateById}
