@@ -10,6 +10,7 @@ const { Server } = require("socket.io");
  const app = express()
  const allowedOrigins = [
     "http://localhost:3000",
+    "http://localhost:3001",
     "https://ishop-frontend-nine.vercel.app",
     ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
   ].filter(Boolean);
@@ -87,11 +88,13 @@ const { Server } = require("socket.io");
  mongoose.connect(process.env.MONGODB_URL).then(
     ()=>{
        
+        const PORT = process.env.PORT || 5000;
+
         server.listen(
-            process.env.PORT,
+            PORT,
             ()=>{
                 console.log("Database connected")
-                console.log("server is running")
+                console.log(`server is running on port ${PORT}`)
             }
         )
         
