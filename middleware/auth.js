@@ -22,9 +22,13 @@ const protect = async (req, res, next) => {
     
     console.log(token)
 
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET environment variable is required");
+    }
+
     const decoded = jwt.verify(
       token,
-      process.env.SECREAT_KEY
+      process.env.JWT_SECRET
     );
 
     

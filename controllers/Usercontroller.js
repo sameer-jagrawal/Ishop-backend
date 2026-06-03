@@ -1,5 +1,8 @@
 const UserModel = require("../models/UserModel")
 const Cryptr = require('cryptr');
+if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET environment variable is required");
+}
 const cryptr = new Cryptr(process.env.JWT_SECRET)
 const { sendBadReaquest, sendConflict, sendCreated, sendNotFound, sendServerError, sendSuccess } = require("../utils/response");
 const sendOtpMail = require("../utils/sendOtpMail");
