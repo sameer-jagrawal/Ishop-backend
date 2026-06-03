@@ -1,6 +1,7 @@
 const jwt = require ("jsonwebtoken");
 const UserModel = require("../models/UserModel");
 const { sendBadReaquest, sendNotFound } = require("../utils/response");
+const { requireAuthSecret } = require("../utils/secrets");
 const protect = async (req, res, next) => {
   try {
 
@@ -22,13 +23,9 @@ const protect = async (req, res, next) => {
     
     console.log(token)
 
-    if (!process.env.JWT_SECRET) {
-      throw new Error("JWT_SECRET environment variable is required");
-    }
-
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET
+      requireAuthSecret()
     );
 
     

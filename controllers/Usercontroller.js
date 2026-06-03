@@ -1,9 +1,7 @@
 const UserModel = require("../models/UserModel")
 const Cryptr = require('cryptr');
-if (!process.env.JWT_SECRET) {
-    throw new Error("JWT_SECRET environment variable is required");
-}
-const cryptr = new Cryptr(process.env.JWT_SECRET)
+const { requireAuthSecret } = require("../utils/secrets");
+const cryptr = new Cryptr(requireAuthSecret())
 const { sendBadReaquest, sendConflict, sendCreated, sendNotFound, sendServerError, sendSuccess } = require("../utils/response");
 const sendOtpMail = require("../utils/sendOtpMail");
 const generateToke = require("../utils/jwt")
@@ -93,7 +91,14 @@ const login = async (req,res) => {
 
   const userPassword  = user.password
 
-  const decryptedPassword = cryptr.decrypt(userPassword);
+  let decryptedPassword;
+
+  try {
+    decryptedPassword = cryptr.decrypt(userPassword);
+  } catch (error) {
+    console.log("Password decrypt failed:", error.message);
+    return sendBadReaquest(res, "Invalid Password");
+  }
 
   if(decryptedPassword !== password) {
     return sendBadReaquest(res,"Invalid Password")
