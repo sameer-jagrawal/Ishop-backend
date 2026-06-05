@@ -4,6 +4,7 @@ const {
   register,
   verifyOtp,
   login,
+  resendOtp,
   getMe,
   address,
   deleteAddress,
@@ -15,6 +16,7 @@ UserRouter.post(
   register,
 );
 UserRouter.post("/verify-otp",verifyOtp);
+UserRouter.post("/resend-otp",resendOtp);
 UserRouter.post("/login",login)
 UserRouter.get("/get",protect,getMe)
 UserRouter.post("/address",protect,address)

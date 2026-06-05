@@ -33,6 +33,10 @@ async function destroyCloudinaryImages(publicIds = []) {
   await Promise.all(ids.map((publicId) => cloudinary.uploader.destroy(publicId)));
 }
 
+function escapeRegex(value = "") {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 // create api
 const create = async (req, res) => {
   try {
@@ -151,11 +155,26 @@ const read = async (req, res) => {
     if (query.is_best) filter.is_best = query.is_best === "true";
     if (query.is_hot) filter.is_hot = query.is_hot === "true";
     if (query.id) filter._id = query.id;
+    if (query.search) {
+      const searchText = String(query.search).trim();
+      if (searchText) {
+        filter.name = { $regex: escapeRegex(searchText), $options: "i" };
+      }
+    }
     // for category
     if (query.category_slug) {
       const category = await categoryModel.findOne({
         slug: query.category_slug,
       });
+      if (!category) {
+        return sendSuccess(res, "Product find succesfully", {
+          product: [],
+          total: 0,
+          limit,
+          pages: 0,
+          imageBaseUrl:"https://ishop-backend-2mld.onrender.com/product"
+        });
+      }
       filter.categoryId = category._id;
     }
     // for brand
@@ -223,7 +242,7 @@ const read = async (req, res) => {
       sorted.createdAt = -1;
     }
     const [total, product] = await Promise.all([
-      ProductModel.find().countDocuments(),
+      ProductModel.countDocuments(filter),
       ProductModel.find(filter)
         .skip(skip)
         .sort(sorted)

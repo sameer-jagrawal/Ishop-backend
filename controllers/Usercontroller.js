@@ -1,4 +1,5 @@
 const UserModel = require("../models/UserModel")
+const PendingUserModel = require("../models/PendingUserModel")
 const Cryptr = require('cryptr');
 const { requireAuthSecret } = require("../utils/secrets");
 const cryptr = new Cryptr(requireAuthSecret())
@@ -11,26 +12,33 @@ const generateToke = require("../utils/jwt")
 const register = async (req,res) => {
     try {
       const {name , email, password } = req.body;
+      const normalizedEmail = email?.toLowerCase().trim();
       
-      if(!name || !email || !password) {
+      if(!name || !normalizedEmail || !password) {
         return sendBadReaquest(res,"All feilds required")
       }
 
-      const existuser = await UserModel.findOne({email})
+      const existuser = await UserModel.findOne({email: normalizedEmail})
       
-      if(existuser){
+      if(existuser?.isVerified){
          return sendConflict(res,"User with this email already exists")
       }
 
+      if(existuser && !existuser.isVerified){
+        await UserModel.deleteOne({_id: existuser._id})
+      }
       
     const encryptedPassword = cryptr.encrypt(password)
     const otp = Math.floor(100000 + Math.random() * 900000)
     const otpExpiry = Date.now() + 3 * 60 * 1000
-    const user = await UserModel.create({name,email,password :encryptedPassword, otp, otpExpiry})
-    const mailRes = await sendOtpMail(email,otp)
-    console.log(mailRes,"sameer")
+    const pendingUser = await PendingUserModel.findOneAndUpdate(
+      { email: normalizedEmail },
+      { name, email: normalizedEmail, password: encryptedPassword, otp, otpExpiry },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+    )
+    const mailRes = await sendOtpMail(normalizedEmail,otp)
 
-      return sendCreated(res,"User Created succesfully", {name:user.name, email:user.email, id : user._id})
+      return sendCreated(res,"OTP sent successfully", {name:pendingUser.name, email:pendingUser.email})
 
     } catch (error) {
         console.log(error)
@@ -42,21 +50,38 @@ const register = async (req,res) => {
 const verifyOtp = async (req,res) => {
   try {
     const {email,otp} = req.body;
-    const user = await UserModel.findOne({email});
-    if(!user) {
-     return  sendNotFound(res,"User not Found")
+    const normalizedEmail = email?.toLowerCase().trim();
+    const pendingUser = await PendingUserModel.findOne({email: normalizedEmail});
+    if(!pendingUser) {
+      const verifiedUser = await UserModel.findOne({email: normalizedEmail});
+      if(verifiedUser?.isVerified){
+        return sendBadReaquest(res,"Email is already verified")
+      }
+     return  sendNotFound(res,"Registration request not found. Please register again")
     }
-    if(user.isVerified){
-      return sendBadReaquest(res,"Email is already verified")
-    }
-    if(user.otp !== parseInt(otp) || user.otpExpiry <Date.now()){
+    if(pendingUser.otp !== parseInt(otp) || pendingUser.otpExpiry < Date.now()){
       return sendBadReaquest(res,"otp not valid")
     }
-    user.isVerified = true;
-    user.otp = undefined;
-    user.otpExpiry = undefined;
-    user.save()
-    return sendSuccess(res)
+
+    const existingVerifiedUser = await UserModel.findOne({email: normalizedEmail});
+    if(existingVerifiedUser?.isVerified){
+      await PendingUserModel.deleteOne({_id: pendingUser._id});
+      return sendConflict(res,"User with this email already exists")
+    }
+
+    if(existingVerifiedUser && !existingVerifiedUser.isVerified){
+      await UserModel.deleteOne({_id: existingVerifiedUser._id});
+    }
+
+    const user = await UserModel.create({
+      name: pendingUser.name,
+      email: pendingUser.email,
+      password: pendingUser.password,
+      isVerified: true,
+    });
+
+    await PendingUserModel.deleteOne({_id: pendingUser._id});
+    return sendSuccess(res,"Email verified successfully",{id:user._id,email:user.email,name:user.name})
   } catch (error) {
     console.log(error)
     return sendServerError(res)
@@ -109,8 +134,8 @@ const login = async (req,res) => {
   res.cookie("jwt", token, {
     maxAge: 30 * 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   });
   
     return sendSuccess(res,`Welcome Back ${user.name}`,{
@@ -131,14 +156,17 @@ const login = async (req,res) => {
 const resendOtp = async(req,res) => {
   try {
     const {email} = req.body;
-    const user = await UserModel.findOne(email);
-    if(!user) {
-      return sendNotFound(res,"user not found")
+    const normalizedEmail = email?.toLowerCase().trim();
+    const pendingUser = await PendingUserModel.findOne({email: normalizedEmail});
+    if(!pendingUser) {
+      return sendNotFound(res,"Registration request not found. Please register again")
     }
     const otp = Math.floor(100000 + Math.random() * 900000)
     const otpExpiry = Date.now() + 3 * 60 * 1000
-    user.save()
-    const mailRes = await sendOtpMail(email,otp);
+    pendingUser.otp = otp
+    pendingUser.otpExpiry = otpExpiry
+    await pendingUser.save()
+    await sendOtpMail(normalizedEmail,otp);
     return sendSuccess(res,"otp resend successfully")
 
   } catch (error) {
@@ -163,8 +191,8 @@ const logOut = (req,res) => {
   try {
     res.clearCookie("jwt", {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     })
     return sendSuccess(res,"User Logout Succesfully")
    
@@ -214,4 +242,4 @@ const deleteAddress = async(req,res) => {
   }
 }
 
-module.exports = {register,verifyOtp,login,getMe,address,deleteAddress,logOut}
+module.exports = {register,verifyOtp,login,resendOtp,getMe,address,deleteAddress,logOut}
