@@ -6,6 +6,11 @@ const cryptr = new Cryptr(requireAuthSecret())
 const { sendBadReaquest, sendConflict, sendCreated, sendNotFound, sendServerError, sendSuccess } = require("../utils/response");
 const sendOtpMail = require("../utils/sendOtpMail");
 const generateToke = require("../utils/jwt")
+const {
+  AUTH_COOKIE_NAME,
+  getAuthCookieOptions,
+  getClearAuthCookieOptions,
+} = require("../utils/authCookie");
 
 
 // create api
@@ -36,13 +41,22 @@ const register = async (req,res) => {
       { name, email: normalizedEmail, password: encryptedPassword, otp, otpExpiry },
       { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
     )
-    const mailRes = await sendOtpMail(normalizedEmail,otp)
+    await sendOtpMail(normalizedEmail,otp)
 
       return sendCreated(res,"OTP sent successfully", {name:pendingUser.name, email:pendingUser.email})
 
     } catch (error) {
-        console.log(error)
-        return sendServerError(res, "Internal Server Error")
+        console.error("Register error:", {
+          message: error.message,
+          code: error.code,
+          name: error.name,
+        })
+
+        if (error.code === 11000) {
+          return sendConflict(res, "User with this email already exists")
+        }
+
+        return sendServerError(res, error.message || "Internal Server Error")
     }
 }
 
@@ -98,7 +112,8 @@ const login = async (req,res) => {
       return sendBadReaquest(res,"All feilds required")
     }
 
-    const user = await UserModel.findOne({email})
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await UserModel.findOne({email: normalizedEmail})
     
     if(!user){
       return sendNotFound(
@@ -131,15 +146,11 @@ const login = async (req,res) => {
 
   const token = generateToke(user._id)
   
-  res.cookie("jwt", token, {
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  });
+  res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions());
   
     return sendSuccess(res,`Welcome Back ${user.name}`,{
       id:user._id,
+      _id:user._id,
       name:user.name,
       email:user.email,
       role:user.role,
@@ -189,11 +200,7 @@ const getMe = (req,res) => {
 //logOut
 const logOut = (req,res) => {
   try {
-    res.clearCookie("jwt", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    })
+    res.clearCookie(AUTH_COOKIE_NAME, getClearAuthCookieOptions())
     return sendSuccess(res,"User Logout Succesfully")
    
   } catch (error) {

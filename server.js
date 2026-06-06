@@ -9,28 +9,43 @@ const { Server } = require("socket.io");
  let cookieParser = require('cookie-parser')
  const fileUpload = require("express-fileupload");
  const app = express()
+ const envOrigins = [
+    process.env.FRONTEND_URL,
+    process.env.FRONTEND_URLS,
+    process.env.VERCEL_FRONTEND_URL,
+  ]
+    .filter(Boolean)
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+
  const allowedOrigins = [
     "http://localhost:3000",
     "http://localhost:3001",
     "https://ishop-frontend-nine.vercel.app",
-    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
-  ].filter(Boolean);
-  
-  app.use(cors({
+    ...envOrigins,
+  ];
+
+ const corsOptions = {
     origin: function (origin, callback) {
-  
-      // allow requests with no origin
-      // like mobile apps or postman
       if (!origin) return callback(null, true);
-  
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
+
+      const normalizedOrigin = origin.replace(/\/$/, "");
+
+      if (allowedOrigins.includes(normalizedOrigin)) {
+        return callback(null, true);
       }
+
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true,
-  }));
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 204,
+  };
+  
+  app.use(cors(corsOptions));
+  app.options(/.*/, cors(corsOptions));
  
  app.set("trust proxy", 1);
  app.use(express.json());
@@ -53,6 +68,17 @@ const { Server } = require("socket.io");
  app.use("/api/user", require("./routers/user.router"))
  app.use("/api/cart", require("./routers/cart.router"))
  app.use("/api/order", require("./routers/order.router"))
+
+ app.use((error, req, res, next) => {
+    if (error.message?.startsWith("Not allowed by CORS")) {
+      return res.status(403).json({
+        success: false,
+        masg: error.message,
+      });
+    }
+
+    next(error);
+ });
 
 
  const server = http.createServer(app);

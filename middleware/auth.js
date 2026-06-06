@@ -1,48 +1,62 @@
 const jwt = require ("jsonwebtoken");
 const UserModel = require("../models/UserModel");
-const { sendBadReaquest, sendNotFound } = require("../utils/response");
 const { requireAuthSecret } = require("../utils/secrets");
+const { AUTH_COOKIE_NAME } = require("../utils/authCookie");
+
+function sendUnauthorized(res, masg) {
+  return res.status(401).json({
+    success: false,
+    masg,
+    message: masg,
+  });
+}
+
 const protect = async (req, res, next) => {
   try {
 
     let token = null;
 
-    if (req.cookies && req.cookies.jwt) {
-      token = req.cookies.jwt;
+    if (req.cookies && req.cookies[AUTH_COOKIE_NAME]) {
+      token = req.cookies[AUTH_COOKIE_NAME];
     }
 
-    // console.log(req.headers.authorization,"user token ")
-
-    if (!token && req.headers.authorization) {
-      token = req.headers.authorization.replace(/^Bearer\s+/i, "");
+    const authHeader = req.headers.authorization || "";
+    if (!token && authHeader) {
+      token = authHeader.replace(/^Bearer\s+/i, "").trim();
     }
 
-    if (!token) {
-      return sendNotFound(res,"Token is missing ")
+    if (!token || token === "undefined" || token === "null") {
+      return sendUnauthorized(res,"Token is missing")
     }
-    
-    console.log(token)
 
     const decoded = jwt.verify(
       token,
       requireAuthSecret()
     );
 
+    if (!decoded?.id) {
+      return sendUnauthorized(res, "Invalid token payload");
+    }
     
     req.user = await UserModel.findById(decoded.id).select("-password");
     if (!req.user) {
-      return sendNotFound(res, "User not found");
+      return sendUnauthorized(res, "User not found");
     }
 
     next(); 
 
   } catch (error) {
-    console.log(error)
+    console.error("Auth middleware error:", error.message);
 
-    return sendBadReaquest(
-      res,
-      "Invalid Token"
-    );
+    if (error.name === "TokenExpiredError") {
+      return sendUnauthorized(res, "Token expired");
+    }
+
+    if (error.name === "JsonWebTokenError") {
+      return sendUnauthorized(res, "Invalid token");
+    }
+
+    return sendUnauthorized(res, "Authentication failed");
   }
 };
 
@@ -50,12 +64,13 @@ const protect = async (req, res, next) => {
 function authorized(...roles) {
   return (req, res, next) => {
     if (!req.user) {
-     return sendNotFound(res,"User Not found")
+     return sendUnauthorized(res,"User not found")
     }
     if (!roles.includes(req.user.role)) {
       return res.status(401).json({
         success:false,
-        masg : "Not authorized"
+        masg : "Not authorized",
+        message: "Not authorized",
       })
     }
 

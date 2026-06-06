@@ -21,7 +21,7 @@ UserRouter.post("/login",login)
 UserRouter.get("/get",protect,getMe)
 UserRouter.post("/address",protect,address)
 UserRouter.delete("/address/delete/:id",protect,deleteAddress)
-UserRouter.post("/logOut",protect,logOut)
+UserRouter.post("/logOut",logOut)
 
 
 

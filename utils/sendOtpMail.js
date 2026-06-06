@@ -2,6 +2,10 @@ const nodemailer = require("nodemailer");
 
 const sendOtpMail = async (toEmail, otp) => {
   try {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      throw new Error("EMAIL_USER and EMAIL_PASS environment variables are required");
+    }
+
     const transporter = nodemailer.createTransport({
       port: 587,
       secure: false,
@@ -142,7 +146,7 @@ const sendOtpMail = async (toEmail, otp) => {
 
   } catch (error) {
     console.log(error)
-    return "Email sending failed: " + error.message;
+    throw error;
   }
 };
 
