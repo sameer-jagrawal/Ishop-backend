@@ -223,6 +223,31 @@ const getAllOrders = async(req,res) => {
     }
 }
 
+// getMyOrders
+const getMyOrders = async(req,res) => {
+    try {
+        const userId = req.user?._id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                masg: "Unauthorized",
+                message: "Unauthorized",
+            });
+        }
+
+        const orders = await OrderModel.find({ user: userId })
+        .populate("user", "name email")
+        .populate("items.product_id", "_id name price final_price thumbnail")
+        .sort({ createdAt: -1 });
+        
+        return sendSuccess(res,"Orders fetched successfully",{orders,imageBaseUrl: "https://ishop-backend-2mld.onrender.com/product/"})
+    } catch (error) {
+        console.log(error)
+        sendServerError(res)
+    }
+}
+
 // get singleOrder
 const getSingleOrder = async(req,res) => {
     try {
@@ -244,4 +269,4 @@ const getSingleOrder = async(req,res) => {
 }
 
 
-module.exports = {orderCreate,paymentVerify,getAllOrders,getSingleOrder}
+module.exports = {orderCreate,paymentVerify,getAllOrders,getMyOrders,getSingleOrder}
