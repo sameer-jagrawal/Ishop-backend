@@ -37,6 +37,11 @@ function escapeRegex(value = "") {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function toPositiveInteger(value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 // create api
 const create = async (req, res) => {
   try {
@@ -145,9 +150,9 @@ const read = async (req, res) => {
     const query = req.query;
     const sorted = {};
     const filter = {};
-    const limit = parseInt(query.limit) || 10;
-    const page = query.pages || 1;
-    const skip = parseInt((page - 1) * limit);
+    const limit = toPositiveInteger(query.limit, 10);
+    const page = toPositiveInteger(query.page || query.pages, 1);
+    const skip = (page - 1) * limit;
     if (query.status) filter.status = query.status === "true";
     if (query.is_home) filter.is_home = query.is_home === "true";
     if (query.is_top) filter.is_top = query.is_top === "true";
@@ -163,8 +168,9 @@ const read = async (req, res) => {
     }
     // for category
     if (query.category_slug) {
+      const categorySlug = String(query.category_slug).trim();
       const category = await categoryModel.findOne({
-        slug: query.category_slug,
+        slug: categorySlug,
       });
       if (!category) {
         return sendSuccess(res, "Product find succesfully", {
@@ -187,16 +193,20 @@ const read = async (req, res) => {
         brandSlugs = query.brand_slug;
       }
 
-      const brands = await BrandModel.find({
-        slug: { $in: brandSlugs },
-      });
+      brandSlugs = brandSlugs.map((slug) => String(slug).trim()).filter(Boolean);
 
-      const brandIds = brands.map((b) => b._id);
+      if (brandSlugs.length) {
+        const brands = await BrandModel.find({
+          slug: { $in: brandSlugs },
+        });
 
-      // console.log("brandIds:", brandIds);
+        const brandIds = brands.map((b) => b._id);
 
-      if (brandIds.length > 0) {
-        filter.brandId = { $in: brandIds };
+        if (brandIds.length > 0) {
+          filter.brandId = { $in: brandIds };
+        } else {
+          filter.brandId = { $in: [] };
+        }
       }
     }
 
@@ -211,22 +221,26 @@ const read = async (req, res) => {
       }
       color_slug = color_slug.map((slug) => slug.trim()).filter(Boolean);
 
-      const colors = await ColorModel.find({
-        slug: { $in: color_slug },
-      });
+      if (color_slug.length) {
+        const colors = await ColorModel.find({
+          slug: { $in: color_slug },
+        });
 
-      const colorIds = colors.map((c) => c._id);
+        const colorIds = colors.map((c) => c._id);
 
-      if (colorIds.length > 0) {
-        filter.colorId = { $in: colorIds };
+        if (colorIds.length > 0) {
+          filter.colorId = { $in: colorIds };
+        } else {
+          filter.colorId = { $in: [] };
+        }
       }
     }
 
     // for price
     if (query.min_price && query.max_price) {
       filter.final_price = {
-        $gte: parseInt(query.min_price),
-        $lte: parseInt(query.max_price),
+        $gte: Number.parseInt(query.min_price, 10),
+        $lte: Number.parseInt(query.max_price, 10),
       };
     }
 
@@ -250,14 +264,6 @@ const read = async (req, res) => {
         .populate(["categoryId", "brandId", "colorId"]),
     ]);
 
-    console.log({
-      total,
-      limit,
-      pages: Math.ceil(total / limit),
-      imageBaseUrl:
-        "https://ishop-backend-2mld.onrender.com/product"
-    });
-
     sendSuccess(res, "Product find succesfully",{
       product,
       total,
@@ -266,7 +272,8 @@ const read = async (req, res) => {
       imageBaseUrl:"https://ishop-backend-2mld.onrender.com/product"
     });
   } catch (error) {
-    sendServerError(res);
+    console.error("Product list error:", error);
+    sendServerError(res, error.message || "Internal Server Error");
   }
 };
 

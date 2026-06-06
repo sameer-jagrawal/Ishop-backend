@@ -17,8 +17,8 @@ productRouter.post(
 );
 
 productRouter.get("/", read)
-productRouter.get("/:id", readById )
 productRouter.get("/slug/:slug", readBySlug )
+productRouter.get("/:id", readById )
 productRouter.delete("/delete/:id",protect,authorized("admin","superAdmin"), deleteById )
 productRouter.put("/image_delete/:slug",protect,authorized("admin","superAdmin"), deleteImage )
 productRouter.put("/update/:id",protect,authorized("admin","superAdmin"), updateById )
