@@ -1,5 +1,6 @@
 const UserModel = require("../models/UserModel")
 const PendingUserModel = require("../models/PendingUserModel")
+const OrderModel = require("../models/OrderModel")
 const Cryptr = require('cryptr');
 const { requireAuthSecret } = require("../utils/secrets");
 const cryptr = new Cryptr(requireAuthSecret())
@@ -286,6 +287,86 @@ const getMe = (req,res) => {
   }
 }
 
+// get all users - admin only
+const getAllUsers = async (req, res) => {
+  try {
+    const search = String(req.query.search || "").trim();
+    const filter = {};
+
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+        { role: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const [users, orderStats, monthlyGrowth, roleBreakdown] = await Promise.all([
+      UserModel.find(filter)
+        .select("-password -otp -otpExpiry -resetPasswordOtp -resetPasswordOtpExpiry")
+        .sort({ createdAt: -1 }),
+      OrderModel.aggregate([
+        {
+          $group: {
+            _id: "$user",
+            ordersCount: { $sum: 1 },
+            totalSpent: { $sum: "$totalAmount" },
+            lastOrderAt: { $max: "$createdAt" },
+          },
+        },
+      ]),
+      UserModel.aggregate([
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+        { $limit: 12 },
+      ]),
+      UserModel.aggregate([
+        { $group: { _id: "$role", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+    ]);
+
+    const statsByUser = orderStats.reduce((acc, item) => {
+      acc[item._id?.toString()] = item;
+      return acc;
+    }, {});
+
+    const usersWithStats = users.map((user) => {
+      const plainUser = user.toObject();
+      const stats = statsByUser[user._id.toString()] || {};
+
+      return {
+        ...plainUser,
+        ordersCount: stats.ordersCount || 0,
+        totalSpent: stats.totalSpent || 0,
+        lastOrderAt: stats.lastOrderAt || null,
+        defaultAddress: plainUser.addresses?.find((address) => address.isDefault) || plainUser.addresses?.[0] || null,
+      };
+    });
+
+    return sendSuccess(res, "Users fetched successfully", {
+      users: usersWithStats,
+      analytics: {
+        totalUsers: usersWithStats.length,
+        verifiedUsers: usersWithStats.filter((user) => user.isVerified).length,
+        usersWithOrders: usersWithStats.filter((user) => user.ordersCount > 0).length,
+        totalCustomerRevenue: usersWithStats.reduce((sum, user) => sum + Number(user.totalSpent || 0), 0),
+        monthlyGrowth,
+        roleBreakdown,
+      },
+    });
+  } catch (error) {
+    console.error("Get all users error:", error);
+    return sendServerError(res, error.message || "Internal Server Error");
+  }
+};
+
 //logOut
 const logOut = (req,res) => {
   try {
@@ -306,6 +387,13 @@ const address = async (req,res) => {
 
     const address  = req.body;
     const user = await UserModel.findById(user_id)
+    if (address.isDefault || user.addresses.length === 0) {
+      user.addresses.forEach((item) => {
+        item.isDefault = false;
+      });
+      address.isDefault = true;
+    }
+
     user.addresses.push(address)
     
     await user.save();
@@ -317,6 +405,32 @@ const address = async (req,res) => {
   }
 }
 
+// set default address
+const setDefaultAddress = async (req, res) => {
+  try {
+    const user = req.user;
+    const addressId = req.params.id;
+    const addressExists = user.addresses.some((item) => item._id.toString() === addressId);
+
+    if (!addressExists) {
+      return sendNotFound(res, "Address not found");
+    }
+
+    user.addresses.forEach((item) => {
+      item.isDefault = item._id.toString() === addressId;
+    });
+
+    await user.save();
+
+    return sendSuccess(res, "Default address updated successfully", {
+      addresses: user.addresses,
+    });
+  } catch (error) {
+    console.log(error);
+    return sendServerError(res);
+  }
+};
+
 // deleteAddress 
 
 const deleteAddress = async(req,res) => {
@@ -326,7 +440,12 @@ const deleteAddress = async(req,res) => {
 
     const addressId = req.params.id;
 
+    const removedAddress = user.addresses.find((item)=>(item._id.toString() === addressId));
     user.addresses = user.addresses.filter((item)=>(item._id.toString() !== addressId));
+
+    if (removedAddress?.isDefault && user.addresses.length) {
+      user.addresses[0].isDefault = true;
+    }
     
     await  user.save()
 
@@ -346,7 +465,9 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getMe,
+  getAllUsers,
   address,
+  setDefaultAddress,
   deleteAddress,
   logOut,
 }

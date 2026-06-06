@@ -1,5 +1,5 @@
 const UserRouter = require("express").Router();
-const {protect} = require("../middleware/auth")
+const {protect, authorized} = require("../middleware/auth")
 const {
   register,
   verifyOtp,
@@ -8,7 +8,9 @@ const {
   forgotPassword,
   resetPassword,
   getMe,
+  getAllUsers,
   address,
+  setDefaultAddress,
   deleteAddress,
   logOut,
 } = require("../controllers/Usercontroller");
@@ -22,8 +24,10 @@ UserRouter.post("/resend-otp",resendOtp);
 UserRouter.post("/forgot-password",forgotPassword);
 UserRouter.post("/reset-password",resetPassword);
 UserRouter.post("/login",login)
+UserRouter.get("/all",protect,authorized("admin","superAdmin"),getAllUsers)
 UserRouter.get("/get",protect,getMe)
 UserRouter.post("/address",protect,address)
+UserRouter.put("/address/default/:id",protect,setDefaultAddress)
 UserRouter.delete("/address/delete/:id",protect,deleteAddress)
 UserRouter.post("/logOut",logOut)
 
