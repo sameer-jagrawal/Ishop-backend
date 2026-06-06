@@ -1,36 +1,25 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  requireTLS: true,
-  family: 4,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendOtpMail = async (toEmail, otp) => {
-  try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      throw new Error("EMAIL_USER and EMAIL_PASS environment variables are required");
-    }
-
-    const mailOptions = {
-      from: `"Ishop Website" <${process.env.EMAIL_USER}>`,
-      to: toEmail,
-      subject: "Verify Your Email - OTP",
-      html: `<h2>Your OTP is ${otp}</h2>`,
-    };
-
-    await transporter.sendMail(mailOptions);
-    return "OTP Email sent successfully";
-  } catch (error) {
-    console.log("OTP email error:", error.message);
-    throw error;
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is required");
   }
+
+  const { data, error } = await resend.emails.send({
+    from: `Ishop Website <${process.env.EMAIL_FROM || "onboarding@resend.dev"}>`,
+    to: [toEmail],
+    subject: "Verify Your Email - OTP",
+    html: `<h2>Your OTP is ${otp}</h2><p>This OTP is valid for 3 minutes.</p>`,
+  });
+
+  if (error) {
+    console.log("Resend email error:", error);
+    throw new Error(error.message || "Failed to send OTP email");
+  }
+
+  return data;
 };
 
 module.exports = sendOtpMail;
