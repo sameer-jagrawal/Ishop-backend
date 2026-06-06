@@ -64,6 +64,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
     },
 
+    resetPasswordOtp: {
+      type: Number,
+    },
+
+    resetPasswordOtpExpiry: {
+      type: Date,
+    },
+
     status: {
       type: Boolean,
       default: true,

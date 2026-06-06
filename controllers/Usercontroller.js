@@ -5,6 +5,7 @@ const { requireAuthSecret } = require("../utils/secrets");
 const cryptr = new Cryptr(requireAuthSecret())
 const { sendBadReaquest, sendConflict, sendCreated, sendNotFound, sendServerError, sendSuccess } = require("../utils/response");
 const sendOtpMail = require("../utils/sendOtpMail");
+const sendPasswordResetMail = require("../utils/sendPasswordResetMail");
 const generateToke = require("../utils/jwt")
 const {
   AUTH_COOKIE_NAME,
@@ -185,6 +186,94 @@ const resendOtp = async(req,res) => {
   }
 }
 
+// forgot password
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const normalizedEmail = email?.toLowerCase().trim();
+
+    if (!normalizedEmail) {
+      return sendBadReaquest(res, "Email is required");
+    }
+
+    const user = await UserModel.findOne({ email: normalizedEmail });
+    if (!user) {
+      return sendNotFound(res, "User not found");
+    }
+
+    if (!user.isVerified) {
+      return sendBadReaquest(res, "Please verify your email first");
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const otpExpiry = Date.now() + 10 * 60 * 1000;
+
+    user.resetPasswordOtp = otp;
+    user.resetPasswordOtpExpiry = otpExpiry;
+    await user.save();
+
+    await sendPasswordResetMail(normalizedEmail, otp);
+
+    return sendSuccess(res, "Password reset OTP sent successfully", {
+      email: normalizedEmail,
+    });
+  } catch (error) {
+    console.error("Forgot password error:", {
+      message: error.message,
+      code: error.code,
+      name: error.name,
+    });
+    return sendServerError(res, error.message || "Internal Server Error");
+  }
+};
+
+// reset password
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, password } = req.body;
+    const normalizedEmail = email?.toLowerCase().trim();
+    const parsedOtp = Number.parseInt(otp, 10);
+
+    if (!normalizedEmail || !otp || !password) {
+      return sendBadReaquest(res, "Email, OTP and new password are required");
+    }
+
+    if (password.length < 6) {
+      return sendBadReaquest(res, "Password must be at least 6 characters");
+    }
+
+    const user = await UserModel.findOne({ email: normalizedEmail });
+    if (!user) {
+      return sendNotFound(res, "User not found");
+    }
+
+    if (!user.resetPasswordOtp || !user.resetPasswordOtpExpiry) {
+      return sendBadReaquest(res, "Password reset request not found. Please request a new OTP");
+    }
+
+    if (
+      user.resetPasswordOtp !== parsedOtp ||
+      user.resetPasswordOtpExpiry < Date.now()
+    ) {
+      return sendBadReaquest(res, "OTP is invalid or expired");
+    }
+
+    user.password = cryptr.encrypt(password);
+    user.resetPasswordOtp = undefined;
+    user.resetPasswordOtpExpiry = undefined;
+    await user.save();
+
+    return sendSuccess(res, "Password reset successfully");
+  } catch (error) {
+    console.error("Reset password error:", {
+      message: error.message,
+      code: error.code,
+      name: error.name,
+    });
+    return sendServerError(res, error.message || "Internal Server Error");
+  }
+};
+
 // getMe
 const getMe = (req,res) => {
   try {
@@ -249,4 +338,15 @@ const deleteAddress = async(req,res) => {
   }
 }
 
-module.exports = {register,verifyOtp,login,resendOtp,getMe,address,deleteAddress,logOut}
+module.exports = {
+  register,
+  verifyOtp,
+  login,
+  resendOtp,
+  forgotPassword,
+  resetPassword,
+  getMe,
+  address,
+  deleteAddress,
+  logOut,
+}
