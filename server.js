@@ -1,10 +1,10 @@
- require('dotenv').config();
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+require('dotenv').config();
  const express = require("express");
  const cors = require("cors");
- const dns = require('dns');
  const http = require("http");
 const { Server } = require("socket.io");
- dns.setDefaultResultOrder('ipv4first');
  const mongoose = require("mongoose");
  let cookieParser = require('cookie-parser')
  const fileUpload = require("express-fileupload");
