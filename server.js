@@ -68,6 +68,7 @@ const { Server } = require("socket.io");
  app.use("/api/user", require("./routers/user.router"))
  app.use("/api/cart", require("./routers/cart.router"))
  app.use("/api/order", require("./routers/order.router"))
+ app.use("/api/dashboard", require("./routers/dashboard.router"))
 
  app.use((error, req, res, next) => {
     if (error.message?.startsWith("Not allowed by CORS")) {
