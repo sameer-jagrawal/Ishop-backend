@@ -1,17 +1,10 @@
-const { Resend } = require("resend");
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+const sendBrevoMail = require("./sendBrevoMail");
 
 const sendOtpMail = async (toEmail, otp) => {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is required");
-  }
-
-  const { data, error } = await resend.emails.send({
-    from: `Ishop Website <${process.env.EMAIL_FROM || "onboarding@resend.dev"}>`,
-    to: [toEmail],
+  return sendBrevoMail({
+    toEmail,
     subject: "Verify Your Email - OTP",
-    html: `
+    htmlContent: `
   <div style="margin:0;padding:0;background:#f6f7f9;font-family:Arial,Helvetica,sans-serif;color:#111827;">
     <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
       <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:32px;">
@@ -51,19 +44,12 @@ const sendOtpMail = async (toEmail, otp) => {
       </div>
 
       <p style="text-align:center;margin:16px 0 0;font-size:12px;color:#9ca3af;">
-        © ${new Date().getFullYear()} IShop. All rights reserved.
+        &copy; ${new Date().getFullYear()} IShop. All rights reserved.
       </p>
     </div>
   </div>
 `,
   });
-
-  if (error) {
-    console.log("Resend email error:", error);
-    throw new Error(error.message || "Failed to send OTP email");
-  }
-
-  return data;
 };
 
 module.exports = sendOtpMail;
